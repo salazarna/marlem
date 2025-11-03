@@ -1,0 +1,23 @@
+name: marlem
+channels:
+  - conda-forge
+dependencies:
+  - pip
+  - python==3.12.10
+  - pip:
+      - gymnasium==1.0.0
+      - ipykernel
+      - jupyter
+      - matplotlib
+      - networkx==3.4.2
+      - numpy
+      - pandas
+      - pytest
+      - plotly
+      - "ray[rllib]==2.49.0"
+      - scikit-learn
+      - scipy
+      - seaborn
+      - tensorboardX==2.6.2.2
+      - torch==2.6.0
+      - tqdm
