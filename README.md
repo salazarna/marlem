@@ -1,30 +1,4 @@
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Page Title</title>
-    <style>
-      .boxed {
-        background:rgb(255, 255, 255);
-        color: black;
-        border: 0px solidrgb(255, 255, 255);
-        margin: 0px auto;
-        width: 550px;
-        padding: 10px;
-        border-radius: 2px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="boxed">
-        <img src="./img/00-uniandes.png" align="center" style="float: right;" width="200" alt="uniandes">
-        <br>
-        <br>
-        <br>
-        <br>
-    </div>
-  </body>
-</html>
+<img src="./img/00-uniandes.png" align="center" width="1500" alt="results">
 
 # MARLEM: Multi-Agent Reinforcement Learning Simulation Framework for Implicit Cooperation in Decentralized Local Energy Markets
 
