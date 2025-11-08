@@ -157,7 +157,7 @@ You should now see `(marlem)` in your terminal prompt.
 To use the environment with Jupyter notebooks:
 
 ```bash
-python -m ipykernel install --user --name phd --display-name "marlem"
+python -m ipykernel install --user --name marlem --display-name "marlem"
 ```
 
 #### Step 5: Verify Installation

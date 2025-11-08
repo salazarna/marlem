@@ -1329,11 +1329,11 @@ class Plotter:
             # Add value on top of bar
             ax2.text(0,
                      metrics.supply_demand_balance + (0.05 if metrics.supply_demand_balance >= 0 else -0.05),
-                    f'{metrics.supply_demand_balance:.3f}',
-                    ha='center',
-                    va='bottom' if metrics.supply_demand_balance >= 0 else 'top',
-                    fontweight='bold',
-                    fontsize=11)
+                     f'{metrics.supply_demand_balance:.3f}',
+                     ha='center',
+                     va='bottom' if metrics.supply_demand_balance >= 0 else 'top',
+                     fontweight='bold',
+                     fontsize=11)
 
             # Performance metrics
             ax3 = fig.add_subplot(gs[1, :])
@@ -1409,11 +1409,11 @@ class Plotter:
 
         # Add value on top of bar
         ax1.text(0, metrics.avg_clearing_price + max(metrics.avg_clearing_price * 0.05, 1),
-                f'${metrics.avg_clearing_price:.2f}',
-                ha='center',
-                va='bottom',
-                fontweight='bold',
-                fontsize=11)
+                 f'${metrics.avg_clearing_price:.2f}',
+                 ha='center',
+                 va='bottom',
+                 fontweight='bold',
+                 fontsize=11)
 
         # Market quality metrics
         ax2 = fig.add_subplot(gs[0, 1])
@@ -1447,11 +1447,11 @@ class Plotter:
 
         if sum(surplus_data.values()) > 0:
             wedges, texts, autotexts = ax3.pie(surplus_data.values(),
-                                             labels=surplus_data.keys(),
-                                             autopct="%1.1f%%",
-                                             colors=[colors[2], colors[3]],
-                                             startangle=90,
-                                             textprops={'fontsize': 11})
+                                               labels=surplus_data.keys(),
+                                               autopct="%1.1f%%",
+                                               colors=[colors[2], colors[3]],
+                                               startangle=90,
+                                               textprops={'fontsize': 11})
 
             # Improve text styling
             for autotext in autotexts:

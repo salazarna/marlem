@@ -182,7 +182,7 @@ class RLInference:
                     model_outputs = self.rl_module.forward_inference(obs_batch)
 
                     # For continuous actions the action_dist_inputs contains distribution parameters
-                    action_dist_params = convert_to_numpy(model_outputs[Columns.ACTION_DIST_INPUTS])  # TODO (Add [0] or not)
+                    action_dist_params = convert_to_numpy(model_outputs[Columns.ACTION_DIST_INPUTS])
 
                     # Split the action parameters for each agent
                     start_idx = 0
@@ -264,9 +264,13 @@ class RLInference:
                                        grid_balance_history,
                                        dso_stats_history)
 
-    def _calculate_metrics(self, total_rewards: Dict, episode_lengths: list,
-                          price_history: list, volume_history: list,
-                          grid_balance_history: list, dso_stats_history: list) -> Dict[str, float]:
+    def _calculate_metrics(self,
+                           total_rewards: Dict,
+                           episode_lengths: list,
+                           price_history: list,
+                           volume_history: list,
+                           grid_balance_history: list,
+                           dso_stats_history: list) -> Dict[str, float]:
         """Calculate comprehensive evaluation metrics."""
         metrics = {}
 

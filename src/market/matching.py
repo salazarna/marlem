@@ -58,7 +58,7 @@ class MarketConfig:
         if self.blockchain_difficulty < 1:
             raise ValueError(f"Blockchain difficulty must be at least 1, got <blockchain_difficulty = {self.blockchain_difficulty}>.")
 
-        if self.price_mechanism not in ClearingMechanism:
+        if not isinstance(self.price_mechanism, ClearingMechanism) and self.price_mechanism not in ClearingMechanism:
             raise ValueError(f"Unknown pricing mechanism: <price_mechanism = {self.price_mechanism}>. Valid options are: {list(ClearingMechanism)}.")
 
         if self._threshold < 0:

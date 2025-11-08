@@ -5,7 +5,7 @@ dependencies:
   - pip
   - python==3.12.10
   - pip:
-      - gymnasium==1.0.0
+      - gymnasium==1.1.1
       - ipykernel
       - jupyter
       - matplotlib

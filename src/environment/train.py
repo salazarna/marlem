@@ -7,14 +7,12 @@ from os import cpu_count
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-import numpy as np
 import ray
 from gymnasium import spaces
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.algorithms.appo import APPOConfig
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.algorithms.sac import SACConfig
-from ray.rllib.callbacks.callbacks import RLlibCallback
 from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
@@ -22,7 +20,7 @@ from ray.rllib.policy.policy import PolicySpec
 from ray.rllib.utils.metrics import ENV_RUNNER_RESULTS, EPISODE_RETURN_MEAN, EVALUATION_RESULTS
 from ray.rllib.utils.replay_buffers.replay_buffer import StorageUnit
 from ray.rllib.utils.typing import MultiAgentDict
-from ray.tune import CheckpointConfig, ResultGrid, RunConfig, TuneConfig, Tuner, loguniform
+from ray.tune import CheckpointConfig, ResultGrid, RunConfig, TuneConfig, Tuner, grid_search, loguniform
 from ray.tune.result import DONE, TRAINING_ITERATION
 from ray.tune.schedulers import PopulationBasedTraining
 from torch.cuda import device_count, is_available
@@ -81,17 +79,16 @@ class RLTrainer:
 
         # Initialize environment
         self.env: MultiAgentEnv = LocalEnergyMarket(env_config) if self.training == TrainingMode.DTDE else GroupedLEM(env_config)
-        # self.env: MultiAgentEnv = RockPaperScissors(env_config) if self.training == TrainingMode.DTDE else GroupedRockPaperScissors(env_config)
 
     def _check_init(self) -> None:
         """Validate initialization parameters to ensure proper configuration."""
         # Validate algorithm
         if not isinstance(self.algorithm, RLAlgorithm):
-            raise ValueError(f"The <algorithm> must be an RLAlgorithm enum, got <algorithm = {self.algorithm.value}>, supported algorithms: ['PPO', 'APPO', 'SAC'].")
+            raise ValueError(f"The <algorithm> must be an RLAlgorithm enum, got <algorithm = {self.algorithm}>, supported algorithms: ['PPO', 'APPO', 'SAC'].")
 
         # Validate training mode
         if not isinstance(self.training, TrainingMode):
-            raise ValueError(f"The <training> must be a TrainingMode enum, got <training = {self.training.value}>, supported training modes: ['CTCE', 'CTDE', 'DTDE'].")
+            raise ValueError(f"The <training> must be a TrainingMode enum, got <training = {self.training}>, supported training modes: ['CTCE', 'CTDE', 'DTDE'].")
 
         # Validate positive integers
         if not isinstance(self.cpus, int) or self.cpus <= 0:
@@ -176,26 +173,26 @@ class RLTrainer:
         """
         # Setup the hyperparameter mutations based on the algorithm type
         if self.algorithm == RLAlgorithm.PPO:
-            hyperparam_mutations = {"lr": loguniform(0.0001, 0.01),}
-                                    # "gamma": loguniform(0.9, 0.99),
-                                    # "entropy_coeff": loguniform(0.01, 10.0),
-                                    # "grad_clip": loguniform(0.1, 10.0)}
-                                    # "num_epochs": grid_search([30, 50, 100]),
-                                    # "minibatch_size": grid_search([128, 512, 2048])}
+            hyperparam_mutations = {"lr": loguniform(0.0001, 0.01),
+                                    "gamma": loguniform(0.9, 0.99),
+                                    "entropy_coeff": loguniform(0.01, 10.0),
+                                    "grad_clip": loguniform(0.1, 10.0),
+                                    "num_epochs": grid_search([30, 50, 100]),
+                                    "minibatch_size": grid_search([128, 512, 2048])}
 
         elif self.algorithm == RLAlgorithm.APPO:
-            hyperparam_mutations = {"lr": loguniform(0.0001, 0.01),}
-                                    # "entropy_coeff": loguniform(0.01, 10.0),
-                                    # "grad_clip": loguniform(0.1, 10.0)}
+            hyperparam_mutations = {"lr": loguniform(0.0001, 0.01),
+                                    "entropy_coeff": loguniform(0.01, 10.0),
+                                    "grad_clip": loguniform(0.1, 10.0)}
 
         elif self.algorithm == RLAlgorithm.SAC:
             hyperparam_mutations = {"actor_lr": loguniform(0.0001, 0.01),
-                                    "critic_lr": loguniform(0.0001, 0.01),}
-                                    # "gamma": loguniform(0.9, 0.99),
-                                    # "grad_clip": loguniform(0.1, 10.0)}
+                                    "critic_lr": loguniform(0.0001, 0.01),
+                                    "gamma": loguniform(0.9, 0.99),
+                                    "grad_clip": loguniform(0.1, 10.0)}
 
         else:
-            raise ValueError(f"The <algorithm> must be an RLAlgorithm enum, got <algorithm = {self.algorithm.value}>, supported algorithms: ['PPO', 'APPO', 'SAC'].")
+            raise ValueError(f"The <algorithm> must be an RLAlgorithm enum, got <algorithm = {self.algorithm}>, supported algorithms: ['PPO', 'APPO', 'SAC'].")
 
         # Setup the complete configuration
         config = self._setup_algorithm_config()
@@ -259,7 +256,7 @@ class RLTrainer:
                     .env_runners(batch_mode="complete_episodes"))
 
         else:
-            raise ValueError(f"The <algorithm> must be an RLAlgorithm enum, got <algorithm = {self.algorithm.value}>, supported algorithms: ['PPO', 'APPO', 'SAC'].")
+            raise ValueError(f"The <algorithm> must be an RLAlgorithm enum, got <algorithm = {self.algorithm}>, supported algorithms: ['PPO', 'APPO', 'SAC'].")
 
     def _setup_extra_config(self, config: AlgorithmConfig) -> AlgorithmConfig:
         """
@@ -278,7 +275,7 @@ class RLTrainer:
         elif self.algorithm == RLAlgorithm.SAC:
             evaluation_config = SACConfig.overrides(exploration=False)
         else:
-            raise ValueError(f"The <algorithm> must be an RLAlgorithm enum, got <algorithm = {self.algorithm.value}>, supported algorithms: ['PPO', 'APPO', 'SAC'].")
+            raise ValueError(f"The <algorithm> must be an RLAlgorithm enum, got <algorithm = {self.algorithm}>, supported algorithms: ['PPO', 'APPO', 'SAC'].")
 
         return (config
                 .framework("torch")
@@ -291,9 +288,7 @@ class RLTrainer:
                             evaluation_duration_unit=StorageUnit.EPISODES,
                             evaluation_num_env_runners=self.cpus,
                             evaluation_parallel_to_training=True,
-                            evaluation_config=evaluation_config)
-                # .callbacks(RewardCallbacks)
-                )
+                            evaluation_config=evaluation_config))
 
     def _setup_training_config(self,
                                config: AlgorithmConfig,
@@ -349,7 +344,7 @@ class RLTrainer:
                     .rl_module(rl_module_spec=MultiRLModuleSpec(rl_module_specs=agents_rl_module)))
 
         else:
-            raise ValueError(f"The <training> must be a TrainingMode enum, got <training = {self.training.value}>, supported training modes: ['CTCE', 'CTDE', 'DTDE'].")
+            raise ValueError(f"The <training> must be a TrainingMode enum, got <training = {self.training}>, supported training modes: ['CTCE', 'CTDE', 'DTDE'].")
 
     def _setup_custom_algo_config(self, config: AlgorithmConfig) -> AlgorithmConfig:
         """
@@ -435,7 +430,7 @@ class RLTrainer:
                                              mode="max",
                                              reuse_actors=True),
                       run_config=RunConfig(storage_path=self.storage_path,
-                                           name=f"lem_{self.algorithm.value}_{self.training.value}_{datetime.now().strftime('%d%B%H%M')}",
+                                           name=f"lem_{self.algorithm.value}_{self.training.value}_{datetime.now().strftime('%Y%m%d%H%M')}",
                                            stop={TRAINING_ITERATION: self.iters if _iters is None else abs(int(_iters)),
                                                  #  "time_total_s": None,
                                                  DONE: True},
@@ -704,60 +699,3 @@ class GroupedLEM(MultiAgentEnv):
         tuple_of_spaces = tuple(dict_space[key] for key in sorted_keys)
 
         return spaces.Tuple(tuple_of_spaces)
-
-
-class RewardCallbacks(RLlibCallback):
-    """Custom callbacks for tracking per-agent rewards during training and evaluation."""
-
-    def on_episode_created(self, *, episode, env_runner, metrics_logger, env, env_index, rl_module):
-        episode.custom_data["ENERGY_TRADES"] = []
-        episode.custom_data["MARKET_PRICES"] = []
-        episode.custom_data["AGENT_PROFITS"] = {agent_id: [] for agent_id in env.agents_id}
-
-    def on_episode_step(self, *, episode, env_runner, metrics_logger, env, env_index, rl_module):
-        # Track market metrics
-        info = episode.get_info()
-        if info:
-            episode.custom_data["ENERGY_TRADES"].append(len(info.get('trades', [])))
-            episode.custom_data["MARKET_PRICES"].append(info.get('market_price', 0.0))
-
-            # Track individual agent profits
-            for agent_id in env.agents_id:
-                agent = env._agents.get(agent_id)
-                if agent:
-                    episode.custom_data["AGENT_PROFITS"][agent_id].append(agent.profit)
-
-    def on_episode_end(self, *, episode, metrics_logger, **kwargs):
-        # Log market-specific metrics
-        total_trades = sum(episode.custom_data["ENERGY_TRADES"])
-        avg_market_price = np.mean(episode.custom_data["MARKET_PRICES"]) if episode.custom_data["MARKET_PRICES"] else 0.0
-
-        # Calculate agent-specific metrics
-        agent_returns = episode.get_rewards()
-        total_return = sum([sum(rewards) for rewards in agent_returns.values()])
-
-        # Log aggregated metrics
-        in_evaluation = kwargs.get("evaluation") or kwargs.get("in_evaluation")
-
-        metrics_logger.log_value("market/total_trades", total_trades, reduce="mean", window=100)
-        metrics_logger.log_value("market/avg_price", avg_market_price, reduce="mean", window=100)
-        metrics_logger.log_value("market/total_return", total_return, reduce="mean", window=100)
-        metrics_logger.log_value("evaluation_mode", in_evaluation, reduce="mean", window=100)
-
-        # Log individual agent profits if available
-        for agent_id, profits in episode.custom_data["AGENT_PROFITS"].items():
-            if profits:
-                metrics_logger.log_value(f"agent/{agent_id}/avg_profit", np.mean(profits), reduce="mean", window=100)
-
-        # Calculate and log additional reward statistics
-        rewards = list(episode.agent_rewards.values())
-        if rewards:
-            metrics_logger.log_value("agent/min_reward", np.min(rewards), reduce="mean", window=100)
-            metrics_logger.log_value("agent/max_reward", np.max(rewards), reduce="mean", window=100)
-            metrics_logger.log_value("agent/mean_reward", np.mean(rewards), reduce="mean", window=100)
-            metrics_logger.log_value("agent/std_reward", np.std(rewards), reduce="mean", window=100)
-
-        # Log cumulative rewards for each agent at episode end
-        for agent_id, total_reward in episode.agent_rewards.items():
-            episode.custom_metrics[f"{agent_id}_episode_reward"] = total_reward
-            metrics_logger.log_value(f"agent/{agent_id}/episode_reward", total_reward, reduce="mean", window=100)

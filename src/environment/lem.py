@@ -452,7 +452,6 @@ class LocalEnergyMarket(MultiAgentEnv):
             truncateds = {agent_id: False for agent_id in self.agents_id}
             truncateds["__all__"] = False
 
-
         # STEP 6. Additional info
         dso_stats = {"dso_buy_volume": matching_result.dso_buy_volume,
                      "dso_sell_volume": matching_result.dso_sell_volume,

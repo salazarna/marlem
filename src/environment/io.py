@@ -24,8 +24,9 @@ from ..root import __main__
 class EnvConfigHandler:
     """Manages LEM environment configuration serialization and deserialization."""
 
-    @staticmethod
-    def save(env_config: Dict[str, Any],
+    @classmethod
+    def save(cls,
+             env_config: Dict[str, Any],
              storage_path: str = None,
              name: str = "env_config",
              decimals: int = 1) -> None:
@@ -47,14 +48,14 @@ class EnvConfigHandler:
         config_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Create a serializable version of env_config
-        serializable_config = EnvConfigHandler._make_config_serializable(env_config, decimals)
+        serializable_config = cls._make_config_serializable(env_config, decimals)
 
         # Save to JSON file
         with open(config_path, "w") as f:
             json.dump(serializable_config, f, indent=2, default=str)
 
-    @staticmethod
-    def load(file_path: str) -> Dict[str, Any]:
+    @classmethod
+    def load(cls, file_path: str) -> Dict[str, Any]:
         """Load environment configuration from JSON file.
 
         Args:
@@ -73,10 +74,11 @@ class EnvConfigHandler:
             serializable_config = json.load(f)
 
         # Restore the original configuration with proper objects
-        return EnvConfigHandler._restore_config_from_serializable(serializable_config)
+        return cls._restore_config_from_serializable(serializable_config)
 
-    @staticmethod
-    def _make_config_serializable(config: Dict[str, Any],
+    @classmethod
+    def _make_config_serializable(cls,
+                                  config: Dict[str, Any],
                                   decimals: int = 1) -> Dict[str, Any]:
         """Convert environment configuration to serializable format.
 
@@ -92,7 +94,7 @@ class EnvConfigHandler:
         for key, value in config.items():
             # Convert MarketConfig to dict
             if key == "market_config":
-                market_dict = value.__dict__ if hasattr(value, "__dict__") else value
+                market_dict = dict(value.__dict__) if hasattr(value, "__dict__") else value
 
                 # Convert ClearingMechanism enum to its value
                 if "price_mechanism" in market_dict and hasattr(market_dict["price_mechanism"], "value"):
@@ -116,12 +118,10 @@ class EnvConfigHandler:
                     # Handle grid_network separately to avoid serialization issues
                     grid_network_dict = None
                     if value.grid_network is not None:
-                        grid_network_dict = {
-                            "topology": value.grid_network.topology.value if hasattr(value.grid_network.topology, "value") else str(value.grid_network.topology),
-                            "num_nodes": value.grid_network.num_nodes,
-                            "capacity": value.grid_network.capacity,
-                            "seed": getattr(value.grid_network, "seed", None)
-                        }
+                        grid_network_dict = {"topology": value.grid_network.topology.value if hasattr(value.grid_network.topology, "value") else str(value.grid_network.topology),
+                                             "num_nodes": value.grid_network.num_nodes,
+                                             "capacity": value.grid_network.capacity,
+                                             "seed": getattr(value.grid_network, "seed", None)}
 
                     serializable[key] = {"id": value.id,
                                          "feed_in_tariff": value.feed_in_tariff,
@@ -165,8 +165,8 @@ class EnvConfigHandler:
 
         return serializable
 
-    @staticmethod
-    def _restore_config_from_serializable(serializable_config: Dict[str, Any]) -> Dict[str, Any]:
+    @classmethod
+    def _restore_config_from_serializable(cls, serializable_config: Dict[str, Any]) -> Dict[str, Any]:
         """Restore environment configuration from serializable format.
 
         Args:

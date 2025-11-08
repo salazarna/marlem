@@ -324,8 +324,8 @@ class GridNetwork:
                 # Cap at capacity to avoid unrealistic values
                 self.edge_flows[key] = float(min(self.edge_flows[key], self.edge_capacities[key]))
 
+        # No path exists between nodes
         except nx.NetworkXNoPath:
-            # No path exists between nodes
             pass
 
     def transmission_loss(self,
@@ -398,8 +398,8 @@ class GridNetwork:
 
             return max_congestion
 
+        # No path exists
         except nx.NetworkXNoPath:
-            # No path exists
             return 0.0
 
     def calculate_congestion_level(self) -> float:

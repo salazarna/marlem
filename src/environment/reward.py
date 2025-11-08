@@ -73,6 +73,7 @@ class RewardHandler:
         self.p_price_deviation: float = 2.0  # Stronger penalty for price manipulation
         self.p_unutilized_resource: float = 1.5  # Higher penalty for waste
         self.p_volatility: float = 2.0  # Penalty for causing market volatility
+        self.p_no_trades: float = 5.0  # Penalty for no trades
 
         # Trade weights
         self._w_local: float = 0.7  # Higher weight for local trades
@@ -132,7 +133,7 @@ class RewardHandler:
 
         # Return penalty if no trades (scaled appropriately)
         if not agent_trades:
-            return -5.0
+            return -self.p_no_trades
 
         # Separate agent's trades between local and DSO
         agent_local_trades = [t for t in agent_trades if t.buyer_id != self.dso.id and t.seller_id != self.dso.id]

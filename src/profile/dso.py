@@ -90,8 +90,8 @@ class DSOProfileHandler(ProfileHandler):
         Returns:
             Tuple of (feed_in_tariff_profile, utility_price_profile)
         """
-        feed_in_tariff_profile = self._get_feed_in_tariff_profile(steps)
-        utility_price_profile = self._get_utility_price_profile(steps)
+        feed_in_tariff_profile = self._clip(self._get_feed_in_tariff_profile(steps))
+        utility_price_profile = self._clip(self._get_utility_price_profile(steps))
 
         # Ensure utility prices are always higher than feed-in tariffs
         return self._enforce_price_relationship(feed_in_tariff_profile, utility_price_profile)
@@ -232,14 +232,12 @@ class DSOProfileHandler(ProfileHandler):
 
         # Define step periods with randomized timing and factors
         # Base periods with random shifts in timing (±1-2 hours) and factors (±20%)
-        base_periods = [
-            (0, 6, 0.9),    # Early morning - medium price
-            (6, 10, 0.7),   # Morning - lower price
-            (10, 16, 0.6),  # Midday - lowest price (high solar generation)
-            (16, 18, 0.8),  # Late afternoon - medium-low price
-            (18, 22, 1.0),  # Evening - higher price
-            (22, 24, 0.9)   # Night - medium price
-        ]
+        base_periods = [(0, 6, 0.9),    # Early morning - medium price
+                        (6, 10, 0.7),   # Morning - lower price
+                        (10, 16, 0.6),  # Midday - lowest price (high solar generation)
+                        (16, 18, 0.8),  # Late afternoon - medium-low price
+                        (18, 22, 1.0),  # Evening - higher price
+                        (22, 24, 0.9)]  # Night - medium price
 
         # Randomize the step periods
         step_periods = []
@@ -294,16 +292,14 @@ class DSOProfileHandler(ProfileHandler):
 
         # Define step periods with randomized timing and factors
         # Base periods with random shifts in timing (±1-2 hours) and factors (±20%)
-        base_periods = [
-            (0, 1, 0.8),    # Midnight - medium-low price
-            (1, 6, 0.6),    # Early morning - off-peak (lowest)
-            (6, 9, 1.3),    # Morning peak - high price
-            (9, 12, 1.0),   # Late morning - standard price
-            (12, 16, 1.1),  # Afternoon - medium-high price
-            (16, 18, 1.2),  # Late afternoon - higher price
-            (18, 22, 1.4),  # Evening peak - highest price
-            (22, 24, 1.0)   # Night - standard price
-        ]
+        base_periods = [(0, 1, 0.8),    # Midnight - medium-low price
+                        (1, 6, 0.6),    # Early morning - off-peak (lowest)
+                        (6, 9, 1.3),    # Morning peak - high price
+                        (9, 12, 1.0),   # Late morning - standard price
+                        (12, 16, 1.1),  # Afternoon - medium-high price
+                        (16, 18, 1.2),  # Late afternoon - higher price
+                        (18, 22, 1.4),  # Evening peak - highest price
+                        (22, 24, 1.0)]  # Night - standard price
 
         # Randomize the step periods
         step_periods = []
@@ -341,3 +337,14 @@ class DSOProfileHandler(ProfileHandler):
             profile.append(round(float(value), self.decimals))
 
         return profile
+
+    def _clip(self, values: List[float]) -> List[float]:
+        """Clip values to the minimum and maximum price.
+
+        Args:
+            values: List of values to clip
+
+        Returns:
+            List of clipped values
+        """
+        return [round(float(val), self.decimals) for val in np.clip(values, self.min_price, self.max_price).tolist()]
