@@ -467,6 +467,7 @@ class LocalEnergyMarket(MultiAgentEnv):
 
         self.info = {"current_step": self.current_step,
                      "time_of_day": self.time_of_day,
+                     "orders": sorted([*orders.values()], key=lambda o: o.agent_id), # TODO
                      "trades": matching_result.trades,
                      "grid_balance": self.dso.balance,
                      "market_price": matching_result.clearing_price,

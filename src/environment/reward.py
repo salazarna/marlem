@@ -68,7 +68,7 @@ class RewardHandler:
         self.f_flexibility_utilization: float = 6.0  # Flexibility utilization importance
 
         # Penalty factors
-        self.p_dso: float = 5.0  # Penalty factor for DSO trades in reward calculation
+        self.p_dso: float = 15.0  # Penalty factor for DSO trades in reward calculation (increased for better impact)
         self.p_grid_imbalance: float = 10.0  # Increased penalty for grid imbalance
         self.p_price_deviation: float = 2.0  # Stronger penalty for price manipulation
         self.p_unutilized_resource: float = 1.5  # Higher penalty for waste
@@ -131,9 +131,9 @@ class RewardHandler:
         # Get agent's trades (those where agent is buyer or seller)
         agent_trades = [trade for trade in matching.trades if (trade.buyer_id == agent.id) or (trade.seller_id == agent.id)]
 
-        # Return penalty if no trades (scaled appropriately)
+        # Return penalty if no trades (using same log normalization as final reward)
         if not agent_trades:
-            return -self.p_no_trades
+            return np.sign(-self.p_no_trades) * np.log1p(np.abs(-self.p_no_trades) / 20.0) * 20.0
 
         # Separate agent's trades between local and DSO
         agent_local_trades = [t for t in agent_trades if t.buyer_id != self.dso.id and t.seller_id != self.dso.id]
@@ -216,15 +216,20 @@ class RewardHandler:
         # STEP 7. Combine all components
         # Calculate cooperation boost
         cooperation_boost = (1.0 + cooperation_factor * contribution_factor)
-        boosted_base_reward = base_reward * cooperation_boost
-        base_magnitude = max(abs(boosted_base_reward), 1.0)
+
+        # Apply log normalization to compress large values while preserving relative ordering
+        boosted_base_reward = base_reward * (1.0 + np.log1p(max(0.0, cooperation_boost - 1.0)) / 5.0)
 
         # Scale penalties proportionally to base reward magnitude
-        normalized_dso_penalty = (dso_penalty / max(self.grid_network.capacity, 1.0)) * base_magnitude
-        normalized_demand_penalty = demand_response_penalty * base_magnitude / self.p_dso
+        penalty_scale = max(max(abs(boosted_base_reward), 1.0), 1.0) * 0.3
+        normalized_dso_penalty = dso_penalty * penalty_scale
+        normalized_demand_penalty = demand_response_penalty * penalty_scale / self.p_dso
 
-        # Final reward calculation
-        return boosted_base_reward - normalized_dso_penalty - normalized_demand_penalty
+        # Final reward calculation with soft log normalization
+        raw_reward = boosted_base_reward - normalized_dso_penalty - normalized_demand_penalty
+
+        # Use sign-preserving log compression: smooths large values while preserving relative ordering
+        return np.sign(raw_reward) * np.log1p(np.abs(raw_reward) / 20.0) * 20.0
 
     def _calculate_trading_reward(self,
                                   order: Order,

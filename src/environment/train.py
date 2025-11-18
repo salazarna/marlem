@@ -5,14 +5,17 @@ Multi-agent reinforcement learning training implementation using Ray RLlib.
 from datetime import datetime
 from os import cpu_count
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Literal, Optional, Tuple
 
 import ray
 from gymnasium import spaces
+from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.algorithms.appo import APPOConfig
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.algorithms.sac import SACConfig
+from ray.rllib.callbacks.callbacks import RLlibCallback
+from ray.rllib.core.learner.learner import Learner
 from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
@@ -20,9 +23,10 @@ from ray.rllib.policy.policy import PolicySpec
 from ray.rllib.utils.metrics import ENV_RUNNER_RESULTS, EPISODE_RETURN_MEAN, EVALUATION_RESULTS
 from ray.rllib.utils.replay_buffers.replay_buffer import StorageUnit
 from ray.rllib.utils.typing import MultiAgentDict
-from ray.tune import CheckpointConfig, ResultGrid, RunConfig, TuneConfig, Tuner, grid_search, loguniform
+from ray.tune import CheckpointConfig, ResultGrid, RunConfig, TuneConfig, Tuner, loguniform
 from ray.tune.result import DONE, TRAINING_ITERATION
 from ray.tune.schedulers import PopulationBasedTraining
+from torch import Tensor
 from torch.cuda import device_count, is_available
 
 from .base import RLAlgorithm, TrainingMode
@@ -42,8 +46,8 @@ class RLTrainer:
                  iters: int = 100,
                  tune_samples: int = 1,
                  checkpoint_freq: int = 10,
-                 evaluation_interval: int = 10,
-                 evaluation_duration: int = 30,
+                 evaluation_interval: int = 1,
+                 evaluation_duration: int | Literal["auto"] = "auto",
                  cpus: Optional[int] = None,
                  gpus: Optional[int] = None,
                  storage_path: Optional[str] = None):
@@ -109,8 +113,8 @@ class RLTrainer:
         if not isinstance(self.evaluation_interval, int) or self.evaluation_interval <= 0:
             raise ValueError(f"The <evaluation_interval> must be a positive integer, got <evaluation_interval = {self.evaluation_interval}>.")
 
-        if not isinstance(self.evaluation_duration, int) or self.evaluation_duration <= 0:
-            raise ValueError(f"The <evaluation_duration> must be a positive integer, got <evaluation_duration = {self.evaluation_duration}>.")
+        if not (isinstance(self.evaluation_duration, str) and self.evaluation_duration == "auto") or (isinstance(self.evaluation_duration, int) and self.evaluation_duration <= 0):
+            raise ValueError(f"The <evaluation_duration> must be a positive integer or 'auto', got <evaluation_duration = {self.evaluation_duration}>.")
 
         # Validate checkpoint frequency doesn't exceed iterations
         if self.checkpoint_freq > self.iters:
@@ -174,22 +178,21 @@ class RLTrainer:
         # Setup the hyperparameter mutations based on the algorithm type
         if self.algorithm == RLAlgorithm.PPO:
             hyperparam_mutations = {"lr": loguniform(0.0001, 0.01),
-                                    "gamma": loguniform(0.9, 0.99),
                                     "entropy_coeff": loguniform(0.01, 10.0),
-                                    "grad_clip": loguniform(0.1, 10.0),
-                                    "num_epochs": grid_search([30, 50, 100]),
-                                    "minibatch_size": grid_search([128, 512, 2048])}
+                                    "lambda_": loguniform(0.8, 0.99),
+                                    # "clip_param": loguniform(0.1, 0.3),
+            }
 
         elif self.algorithm == RLAlgorithm.APPO:
             hyperparam_mutations = {"lr": loguniform(0.0001, 0.01),
                                     "entropy_coeff": loguniform(0.01, 10.0),
-                                    "grad_clip": loguniform(0.1, 10.0)}
+                                    "lambda_": loguniform(0.8, 0.99)}
 
         elif self.algorithm == RLAlgorithm.SAC:
             hyperparam_mutations = {"actor_lr": loguniform(0.0001, 0.01),
                                     "critic_lr": loguniform(0.0001, 0.01),
-                                    "gamma": loguniform(0.9, 0.99),
-                                    "grad_clip": loguniform(0.1, 10.0)}
+                                    # "tau": loguniform(0.001, 0.01),  # Soft update, if configurable
+            }
 
         else:
             raise ValueError(f"The <algorithm> must be an RLAlgorithm enum, got <algorithm = {self.algorithm}>, supported algorithms: ['PPO', 'APPO', 'SAC'].")
@@ -311,7 +314,8 @@ class RLTrainer:
                                                            observation_space=self.env.observation_space,
                                                            action_space=self.env.action_space,
                                                            model_config={"algorithm": self.algorithm.value,
-                                                                         "embeddings_dim": embeddings_dim})))
+                                                                         "embeddings_dim": embeddings_dim}))
+                    .callbacks(MultiOptimizerCallback))
 
         elif self.training == TrainingMode.CTDE:
             return (config
@@ -322,7 +326,8 @@ class RLTrainer:
                                                            action_space=self.env.action_space,
                                                            model_config={"algorithm": self.algorithm.value,
                                                                          "agents_id": self.env.original_agents_id,
-                                                                         "embeddings_dim": embeddings_dim})))
+                                                                         "embeddings_dim": embeddings_dim}))
+                    .callbacks(MultiOptimizerCallback))
 
         elif self.training == TrainingMode.DTDE:
             # Setup the policy of each agent
@@ -341,7 +346,8 @@ class RLTrainer:
                                  env_config=self.env_config)
                     .multi_agent(policies=agents_policy,
                                  policy_mapping_fn=lambda agent_id, *args, **kwargs: agent_id)
-                    .rl_module(rl_module_spec=MultiRLModuleSpec(rl_module_specs=agents_rl_module)))
+                    .rl_module(rl_module_spec=MultiRLModuleSpec(rl_module_specs=agents_rl_module))
+                    .callbacks(SingleOptimizerCallback))
 
         else:
             raise ValueError(f"The <training> must be a TrainingMode enum, got <training = {self.training}>, supported training modes: ['CTCE', 'CTDE', 'DTDE'].")
@@ -410,7 +416,7 @@ class RLTrainer:
         """
         # Setup configuration
         algo_config, hyperparam_mutations = self._setup_config(embeddings_dim)
-        algo_config = self._setup_custom_algo_config(algo_config).algo_config
+        # algo_config = self._setup_custom_algo_config(algo_config).algo_config
 
         if _checkpoint_path:
             algo_config.callbacks(on_algorithm_init=lambda algorithm, **kwargs: algorithm.restore_from_path(_checkpoint_path))
@@ -428,7 +434,7 @@ class RLTrainer:
                                                                                hyperparam_mutations=hyperparam_mutations),
                                              metric=f"{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}",
                                              mode="max",
-                                             reuse_actors=True),
+                                             reuse_actors=False),
                       run_config=RunConfig(storage_path=self.storage_path,
                                            name=f"lem_{self.algorithm.value}_{self.training.value}_{datetime.now().strftime('%Y%m%d%H%M')}",
                                            stop={TRAINING_ITERATION: self.iters if _iters is None else abs(int(_iters)),
@@ -699,3 +705,46 @@ class GroupedLEM(MultiAgentEnv):
         tuple_of_spaces = tuple(dict_space[key] for key in sorted_keys)
 
         return spaces.Tuple(tuple_of_spaces)
+
+
+class SingleOptimizerCallback(RLlibCallback):
+    """Callback to fix optimizer settings to prevent beta1 Tensor error.
+
+    This callback fixes the "beta1 as a Tensor is not supported for capturable=False
+    and foreach=True" error on all optimizers after algorithm initialization and
+    checkpoint loading for RLModule.
+
+    Based on: https://github.com/ray-project/ray/issues/51560#issuecomment-2831921054
+    """
+    def on_checkpoint_loaded(self,
+                             *,
+                             algorithm: Algorithm,
+                             **kwargs) -> None:
+        def betas_tensor_to_float(learner: Learner) -> None:
+            param_grp = next(iter(learner._optimizer_parameters.keys())).param_groups[0]
+
+            if not param_grp["capturable"] and isinstance(param_grp["betas"][0], Tensor):
+                param_grp["betas"] = tuple(beta.item() for beta in param_grp["betas"])
+
+        algorithm.learner_group.foreach_learner(betas_tensor_to_float)
+
+
+class MultiOptimizerCallback(RLlibCallback):
+    """Callback to fix optimizer settings to prevent beta1 Tensor error.
+
+    This callback fixes the "beta1 as a Tensor is not supported for capturable=False
+    and foreach=True" error on all optimizers after algorithm initialization and
+    checkpoint loading for MultiRLModule.
+
+    Based on: https://github.com/ray-project/ray/issues/51560#issuecomment-3173182766
+    """
+    def on_checkpoint_loaded(self,
+                             *,
+                             algorithm: Algorithm,
+                             **kwargs) -> None:
+        def betas_tensor_to_float(learner: Learner) -> None:
+            for param_grp_key in learner._optimizer_parameters.keys():
+                param_grp = param_grp_key.param_groups[0]
+                param_grp["betas"] = tuple(beta.item() for beta in param_grp["betas"])
+
+        algorithm.learner_group.foreach_learner(betas_tensor_to_float)
