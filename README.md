@@ -365,7 +365,7 @@ keywords = "Local Energy Markets, Multi-Agent Reinforcement Learning, Decentrali
 
 ## Acknowledgements
 
-This work was supported by the Vice-Rectorate for Research and Creation at Universidad de los Andes through grant TDR-01409-25 as part of the Connected Horizons: Call for Creation, Research, and Transformation 2025 program.
+This work was supported by the Vice-Rector's Office for Research and Creation at Universidad de los Andes through grant TDR-01409-25 as part of the Connected Horizons: Call for Creation, Research, and Transformation 2025 program.
 
 ## License
 
