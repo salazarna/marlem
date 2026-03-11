@@ -343,21 +343,21 @@ For major changes or new features, please open an issue first to discuss the pro
 The original paper describing the methods implemented is:
 
 ```
-Salazar-Peña, N., Tabares, A., Gonzalez-Mancera, A., 2025. MARLEM: Multi-Agent Reinforcement Learning Simulation Framework for Implicit Cooperation in Decentralized Local Energy Markets. Journal, Vol. XXX, XXXXXX. URL: <>, doi: <>.
+Salazar-Peña, N., Tabares, A., Gonzalez-Mancera, A., 2026. MARLEM: Multi-Agent Reinforcement Learning Simulation Framework for Implicit Cooperation in Decentralized Local Energy Markets. Journal, Vol. 412, 127546. URL: https://www.sciencedirect.com/science/article/pii/S0306261926001984, doi: https://doi.org/10.1016/j.apenergy.2026.127546.
 ```
 
 The BibTex entry:
 
 ```
-@article{SalazarPena2025,
+@article{SalazarPena2026,
 title = "MARLEM: Multi-Agent Reinforcement Learning Simulation Framework for Implicit Cooperation in Decentralized Local Energy Markets",
-journal = "",
-volume = "",
-pages = "",
-year = "",
-issn = "",
-doi = "",
-url = "",
+journal = "Applied Energy",
+volume = "412",
+pages = "127546",
+year = "2026",
+issn = "0306-2619",
+doi = "https://doi.org/10.1016/j.apenergy.2026.127546",
+url = "https://www.sciencedirect.com/science/article/pii/S0306261926001984",
 author = "Nelson Salazar-Peña and Alejandra Tabares and Andrés González-Mancera",
 keywords = "Local Energy Markets, Multi-Agent Reinforcement Learning, Decentralized Partially Observable Markov Decision Process, Implicit Cooperation, Decentralized Energy Systems, Simulation Framework",
 }
